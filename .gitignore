@@ -2,7 +2,7 @@
 # This .gitignore file was automatically created by Microsoft(R) Visual Studio.
 ################################################################################
 
-/.vs/AoC2022
-/Day01/x64/Debug
-/x64/Debug
-/Day01/Day01.vcxproj.user
+x64/Debug/*
+**/x64/Release
+*.vcxproj.user
+**/.vs

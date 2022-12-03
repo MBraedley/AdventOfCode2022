@@ -63,10 +63,9 @@ int main()
 
 	priorities = 0;
 
-	std::set<char> resolvedGroups;
-	std::deque<std::set<char>> unresolvedGroups;
+	std::vector<char> resolvedGroups;
 
-	for (auto i = 0ll; i < rucksacks.size() / 3; i++)
+	for (auto i = 0ll; i < rucksacks.size(); i+=3)
 	{
 		auto sack1 = rucksacks[i].first + rucksacks[i].second;
 		std::set<char> elf1(sack1.begin(), sack1.end());
@@ -82,39 +81,11 @@ int main()
 
 		if (inter2.length() == 1)
 		{
-			resolvedGroups.insert(inter2[0]);
+			resolvedGroups.push_back(inter2[0]);
 		}
 		else
 		{
-			unresolvedGroups.emplace_back(inter2.begin(), inter2.end());
-		}
-	}
-
-	while (!unresolvedGroups.empty())
-	{
-		auto group = unresolvedGroups.front();
-		unresolvedGroups.pop_front();
-
-		for (const char& c : group)
-		{
-			if (resolvedGroups.contains(c))
-			{
-				group.erase(c);
-			}
-		}
-
-		if (group.size() == 1)
-		{
-			resolvedGroups.insert(*group.begin());
-		}
-		else
-		{
-			if (group.size() == 0)
-			{
-				throw std::exception("");
-			}
-
-			unresolvedGroups.push_back(group);
+			throw std::exception("Group couldn't be resolved");
 		}
 	}
 
