@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <ranges>
+#include <set>
 
 class File
 {
@@ -18,6 +18,11 @@ public:
 
 	const std::string& GetName() const { return m_Name; }
 	std::size_t GetSize() const { return m_Filesize; }
+
+	auto operator<=>(const File& other)
+	{
+		return this->m_Name <=> other.m_Name;
+	}
 
 private:
 	std::string m_Name{};
@@ -51,22 +56,27 @@ public:
 		return filesize;
 	}
 
-	const std::vector<std::unique_ptr<Dir>>& GetSubDirectories() const { return m_SubDirs; }
+	const std::set<std::unique_ptr<Dir>>& GetSubDirectories() const { return m_SubDirs; }
 
 	void AddFile(const std::string& name, std::size_t size)
 	{
-		m_Files.emplace_back(name, size);
+		m_Files.emplace(name, size);
 	}
 
 	void AddDir(std::unique_ptr<Dir>&& dir)
 	{
-		m_SubDirs.push_back(std::move(dir));
+		m_SubDirs.insert(std::move(dir));
+	}
+
+	auto operator<=>(const Dir& other)
+	{
+		return this->m_Name <=> other.m_Name;
 	}
 
 private:
 	std::string m_Name{};
-	std::vector<std::unique_ptr<Dir>> m_SubDirs;
-	std::vector<File> m_Files;
+	std::set<std::unique_ptr<Dir>> m_SubDirs;
+	std::set<File> m_Files;
 };
 
 int main()
