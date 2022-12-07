@@ -65,7 +65,7 @@ int main()
 
 	std::vector<char> resolvedGroups;
 
-	for (auto i = 0ll; i < rucksacks.size(); i+=3)
+	for (auto i = 0ull; i < rucksacks.size(); i+=3)
 	{
 		auto sack1 = rucksacks[i].first + rucksacks[i].second;
 		std::set<char> elf1(sack1.begin(), sack1.end());
