@@ -118,6 +118,19 @@ std::uint64_t GetMatchingContents( std::shared_ptr<Dir> root, std::function<bool
 	return ret;
 }
 
+void GetSmallestLargeEnoughDir( std::shared_ptr<Dir> root, const std::size_t minSize, std::size_t& currentBest )
+{
+	if( auto dirSize = root->GetSize(); dirSize <= currentBest && dirSize >= minSize )
+	{
+		currentBest = dirSize;
+	}
+
+	for( auto dir : root->GetSubDirectories() )
+	{
+		GetSmallestLargeEnoughDir( dir, minSize, currentBest );
+	}
+}
+
 int main()
 {
 	std::filesystem::path inputFile( "input.txt" );
@@ -169,4 +182,15 @@ int main()
 		} );
 
 	std::cout << smallFolderSizes << "\n";
+
+	// Part 2
+	constexpr std::size_t hddSize{ 70000000 };
+	constexpr std::size_t hddSpaceNeeded{ 30000000 };
+
+	std::size_t spaceAvailable = hddSize - root->GetSize();
+	const std::size_t minDirSizeToDelete = hddSpaceNeeded - spaceAvailable;
+
+	std::size_t bestSize = root->GetSize();
+	GetSmallestLargeEnoughDir( root, minDirSizeToDelete, bestSize );
+	std::cout << bestSize << "\n";
 }
