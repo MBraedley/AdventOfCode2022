@@ -4,6 +4,9 @@
 #include <fstream>
 #include <memory>
 #include <set>
+#include <stack>
+#include <regex>
+#include <functional>
 
 class File
 {
@@ -19,15 +22,16 @@ public:
 	const std::string& GetName() const { return m_Name; }
 	std::size_t GetSize() const { return m_Filesize; }
 
-	auto operator<=>( const File& other )
-	{
-		return this->m_Name <=> other.m_Name;
-	}
-
+	friend auto operator<=>( const File& lhs, const File& rhs );
 private:
 	std::string m_Name{};
 	std::size_t m_Filesize{};
 };
+
+auto operator<=>( const File& lhs, const File& rhs )
+{
+	return lhs.m_Name <=> rhs.m_Name;
+}
 
 class Dir
 {
@@ -56,28 +60,63 @@ public:
 		return filesize;
 	}
 
-	const std::set<std::unique_ptr<Dir>>& GetSubDirectories() const { return m_SubDirs; }
+	const std::set<std::shared_ptr<Dir>>& GetSubDirectories() const { return m_SubDirs; }
+
+	std::shared_ptr<Dir> GetSubDirectory( std::string name )
+	{
+		auto iter = std::find_if( m_SubDirs.begin(), m_SubDirs.end(), [&]( const std::shared_ptr<Dir>& other )
+			{
+				return name == other->GetName();
+			} );
+
+		return *iter;
+	}
 
 	void AddFile( const std::string& name, std::size_t size )
 	{
 		m_Files.emplace( name, size );
 	}
 
-	void AddDir( std::unique_ptr<Dir>&& dir )
+	void AddDir( std::shared_ptr<Dir> dir )
 	{
-		m_SubDirs.insert( std::move( dir ) );
+		m_SubDirs.insert( dir );
 	}
 
-	auto operator<=>( const Dir& other )
-	{
-		return this->m_Name <=> other.m_Name;
-	}
+	friend auto operator<=>( const Dir& lhs, const Dir& rhs );
+	friend auto operator<=>( const std::shared_ptr<Dir>& lhs, const std::shared_ptr<Dir>& rhs );
 
 private:
 	std::string m_Name{};
-	std::set<std::unique_ptr<Dir>> m_SubDirs;
+	std::set<std::shared_ptr<Dir>> m_SubDirs;
 	std::set<File> m_Files;
 };
+
+auto operator<=>( const Dir& lhs, const Dir& rhs )
+{
+	return lhs.m_Name <=> rhs.m_Name;
+}
+
+auto operator<=>( const std::shared_ptr<Dir>& lhs, const std::shared_ptr<Dir>& rhs )
+{
+	return *lhs <=> *rhs;
+}
+
+std::uint64_t GetMatchingContents( std::shared_ptr<Dir> root, std::function<bool( std::size_t )> pred )
+{
+	std::uint64_t ret = 0;
+	auto currentDirSize = root->GetSize();
+	if( pred( currentDirSize ) )
+	{
+		ret += currentDirSize;
+	}
+
+	for( auto dir : root->GetSubDirectories() )
+	{
+		ret += GetMatchingContents( dir, pred );
+	}
+
+	return ret;
+}
 
 int main()
 {
@@ -85,5 +124,49 @@ int main()
 	std::ifstream inStrm( inputFile );
 
 	std::string line;
-	Dir root;
+	std::shared_ptr<Dir> root = std::make_shared<Dir>( "/" );
+
+	std::stack<std::shared_ptr<Dir>> dirStack;
+	dirStack.push( root );
+
+	std::regex cdCmd( "^\\$ cd (.+)$" );
+	std::regex lsCmd( "^\\$ ls$" );
+	std::regex lsDir( "^dir (.+)$" );
+	std::regex lsFile( "^(\\d+) (.+)$" );
+
+	std::smatch m;
+
+	while( std::getline(inStrm, line) )
+	{
+		if( std::regex_match( line, m, cdCmd ) )
+		{
+			if( m[1] == ".." )
+			{
+				dirStack.pop();
+			}
+			else if ( m[1] != "/" )
+			{
+				dirStack.push( dirStack.top()->GetSubDirectory( m[1] ) );
+			}
+		}
+		else if( std::regex_match( line, m, lsCmd ) )
+		{
+			//Do nothing
+		}
+		else if( std::regex_match( line, m, lsDir ) )
+		{
+			dirStack.top()->AddDir( std::move( std::make_unique<Dir>( m[1] ) ) );
+		}
+		else if ( std::regex_match(line, m, lsFile) )
+		{
+			dirStack.top()->AddFile( m[2], std::stoull( m[1] ) );
+		}
+	}
+
+	std::uint64_t smallFolderSizes = GetMatchingContents( root, []( std::size_t folderSize ) -> bool
+		{
+			return folderSize <= 100000;
+		} );
+
+	std::cout << smallFolderSizes << "\n";
 }
