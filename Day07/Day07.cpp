@@ -168,7 +168,7 @@ int main()
 		}
 		else if( std::regex_match( line, m, lsDir ) )
 		{
-			dirStack.top()->AddDir( std::move( std::make_unique<Dir>( m[1] ) ) );
+			dirStack.top()->AddDir( std::make_shared<Dir>( m[1] ) );
 		}
 		else if ( std::regex_match(line, m, lsFile) )
 		{
