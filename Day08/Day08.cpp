@@ -28,28 +28,29 @@ int main()
 	}
 
 	std::set<std::pair<std::size_t, std::size_t>> visibleTrees;
-	std::int8_t heightLimit;
 
+	auto checkVisibilty = [&]( auto x, auto y, auto& heightLimit )
+	{
+		if( forest[y][x] > heightLimit )
+		{
+			visibleTrees.emplace( x, y );
+			heightLimit = forest[y][x];
+		}
+	};
+
+	std::int8_t heightLimit;
 	for( std::size_t y = 0; y < forest.size(); y++ )
 	{
 		heightLimit = -1;
 		for( std::size_t x = 0; x < forest[y].size(); x++ )
 		{
-			if( forest[y][x] > heightLimit )
-			{
-				visibleTrees.emplace( x, y );
-				heightLimit = forest[y][x];
-			}
+			checkVisibilty( x, y, heightLimit );
 		}
 
 		heightLimit = -1;
 		for( std::int32_t x = forest[y].size() - 1; x >= 0; x-- )
 		{
-			if( forest[y][x] > heightLimit )
-			{
-				visibleTrees.emplace( x, y );
-				heightLimit = forest[y][x];
-			}
+			checkVisibilty( x, y, heightLimit );
 		}
 	}
 
@@ -58,21 +59,13 @@ int main()
 		heightLimit = -1;
 		for( std::size_t y = 0; y < forest.size(); y++ )
 		{
-			if( forest[y][x] > heightLimit )
-			{
-				visibleTrees.emplace( x, y );
-				heightLimit = forest[y][x];
-			}
+			checkVisibilty( x, y, heightLimit );
 		}
 
 		heightLimit = -1;
 		for( std::int32_t y = forest.size() - 1; y >= 0; y-- )
 		{
-			if( forest[y][x] > heightLimit )
-			{
-				visibleTrees.emplace( x, y );
-				heightLimit = forest[y][x];
-			}
+			checkVisibilty( x, y, heightLimit );
 		}
 	}
 
