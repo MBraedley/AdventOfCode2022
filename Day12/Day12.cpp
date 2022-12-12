@@ -37,14 +37,14 @@ int main()
 
 	std::map<std::pair<std::size_t, std::size_t>, std::uint32_t> steps;
 	std::deque<std::tuple<char, std::uint32_t, std::pair<std::size_t, std::size_t>>> testPoints;
-	auto testFunc1 = [&](char currentHeight, std::uint32_t numSteps, std::pair<std::size_t, std::size_t> testPoint) -> std::tuple<bool, std::pair<std::size_t, std::size_t>>
+	auto testFunc1 = [&](char currentHeight, std::uint32_t numSteps, std::pair<std::size_t, std::size_t> testPoint) -> bool
 	{
 		std::uint32_t testSteps = std::numeric_limits<std::uint32_t>::max();
 		if (steps.contains(testPoint))
 		{
 			testSteps = steps[testPoint];
 		}
-		return { areaMap[testPoint.second][testPoint.first] - currentHeight <= 1 && numSteps < testSteps - 2, testPoint };
+		return areaMap[testPoint.second][testPoint.first] - currentHeight <= 1 && numSteps < testSteps - 2;
 	};
 
 	auto addPointsToQueue = [&](std::pair<std::size_t, std::size_t> point, std::uint32_t numSteps)
@@ -73,13 +73,12 @@ int main()
 	while (!testPoints.empty())
 	{
 		auto& [height, numSteps, tPoint] = testPoints.front();
-		auto [canStep, nextPoint] = testFunc1(height, numSteps, tPoint);
-		if (canStep)
+		if (testFunc1(height, numSteps, tPoint))
 		{
-			steps[nextPoint] = numSteps + 1;
-			if (nextPoint != end)
+			steps[tPoint] = numSteps + 1;
+			if (tPoint != end)
 			{
-				addPointsToQueue(nextPoint, numSteps + 1);
+				addPointsToQueue(tPoint, numSteps + 1);
 			}
 		}
 		testPoints.pop_front();
@@ -89,14 +88,14 @@ int main()
 
 	//Part 2
 	steps.clear();
-	auto testFunc2 = [&](char currentHeight, std::uint32_t numSteps, std::pair<std::size_t, std::size_t> testPoint) -> std::tuple<bool, std::pair<std::size_t, std::size_t>>
+	auto testFunc2 = [&](char currentHeight, std::uint32_t numSteps, std::pair<std::size_t, std::size_t> testPoint) -> bool
 	{
 		std::uint32_t testSteps = std::numeric_limits<std::uint32_t>::max();
 		if (steps.contains(testPoint))
 		{
 			testSteps = steps[testPoint];
 		}
-		return { currentHeight - areaMap[testPoint.second][testPoint.first] <= 1 && numSteps < testSteps - 2, testPoint };
+		return currentHeight - areaMap[testPoint.second][testPoint.first] <= 1 && numSteps < testSteps - 2;
 	};
 
 	addPointsToQueue(end, 0);
@@ -105,17 +104,16 @@ int main()
 	while (!testPoints.empty())
 	{
 		auto& [height, numSteps, tPoint] = testPoints.front();
-		auto [canStep, nextPoint] = testFunc2(height, numSteps, tPoint);
-		if (canStep)
+		if (testFunc2(height, numSteps, tPoint))
 		{
-			steps[nextPoint] = numSteps + 1;
-			if (areaMap[nextPoint.second][nextPoint.first] == 'a')
+			steps[tPoint] = numSteps + 1;
+			if (areaMap[tPoint.second][tPoint.first] == 'a')
 			{
 				possibleStartDistances.insert(numSteps + 1);
 			}
 			else
 			{
-				addPointsToQueue(nextPoint, numSteps + 1);
+				addPointsToQueue(tPoint, numSteps + 1);
 			}
 		}
 		testPoints.pop_front();
