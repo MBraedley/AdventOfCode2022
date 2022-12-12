@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <set>
 #include <deque>
 
 #define NOMINMAX
@@ -85,4 +86,40 @@ int main()
 	}
 
 	std::cout << steps[end] << "\n";
+
+	//Part 2
+	steps.clear();
+	auto testFunc2 = [&](char currentHeight, std::uint32_t numSteps, std::pair<std::size_t, std::size_t> testPoint) -> std::tuple<bool, std::pair<std::size_t, std::size_t>>
+	{
+		std::uint32_t testSteps = std::numeric_limits<std::uint32_t>::max();
+		if (steps.contains(testPoint))
+		{
+			testSteps = steps[testPoint];
+		}
+		return { currentHeight - areaMap[testPoint.second][testPoint.first] <= 1 && numSteps < testSteps - 2, testPoint };
+	};
+
+	addPointsToQueue(end, 0);
+	std::set<std::uint32_t> possibleStartDistances;
+
+	while (!testPoints.empty())
+	{
+		auto [height, numSteps, tPoint] = testPoints.front();
+		testPoints.pop_front();
+		auto [canStep, nextPoint] = testFunc2(height, numSteps, tPoint);
+		if (canStep)
+		{
+			steps[nextPoint] = numSteps + 1;
+			if (areaMap[nextPoint.second][nextPoint.first] == 'a')
+			{
+				possibleStartDistances.insert(numSteps + 1);
+			}
+			else
+			{
+				addPointsToQueue(nextPoint, numSteps + 1);
+			}
+		}
+	}
+
+	std::cout << *possibleStartDistances.begin() << "\n";
 }
