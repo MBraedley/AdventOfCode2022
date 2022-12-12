@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <functional>
 #include <deque>
-#include <map>
+#include <chrono>
 #include <regex>
 
 class Monkey
@@ -76,6 +76,8 @@ int main()
 {
 	std::filesystem::path inputFile("input.txt");
 	std::ifstream inStrm(inputFile);
+
+	auto startTime = std::chrono::system_clock::now();
 
 	std::vector<std::unique_ptr<Monkey>> monkeys;
 	std::string line;
@@ -160,6 +162,8 @@ int main()
 		monkeys.emplace_back(std::make_unique<Monkey>(startingItems, op, test, callback));
 	}
 
+	auto endRead = std::chrono::system_clock::now();
+
 	constexpr const int part = 2;
 
 	std::vector<std::size_t> itemsInspected(monkeys.size(), 0ull);
@@ -185,8 +189,12 @@ int main()
 		}
 	}
 
-	auto sortedCounts = itemsInspected;
-	std::sort(sortedCounts.begin(), sortedCounts.end(), std::greater<std::size_t>());
+	std::sort(itemsInspected.begin(), itemsInspected.end(), std::greater<std::size_t>());
 
-	std::cout << sortedCounts[0] * sortedCounts[1];
+	auto endCalc = std::chrono::system_clock::now();
+
+	std::cout << itemsInspected[0] * itemsInspected[1] << "\n";
+
+	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(endRead - startTime) << ", "
+		<< std::chrono::duration_cast<std::chrono::milliseconds>(endCalc - endRead) << "\n";
 }
