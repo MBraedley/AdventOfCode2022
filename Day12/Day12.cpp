@@ -72,8 +72,7 @@ int main()
 
 	while (!testPoints.empty())
 	{
-		auto [height, numSteps, tPoint] = testPoints.front();
-		testPoints.pop_front();
+		auto& [height, numSteps, tPoint] = testPoints.front();
 		auto [canStep, nextPoint] = testFunc1(height, numSteps, tPoint);
 		if (canStep)
 		{
@@ -83,6 +82,7 @@ int main()
 				addPointsToQueue(nextPoint, numSteps + 1);
 			}
 		}
+		testPoints.pop_front();
 	}
 
 	std::cout << steps[end] << "\n";
@@ -104,8 +104,7 @@ int main()
 
 	while (!testPoints.empty())
 	{
-		auto [height, numSteps, tPoint] = testPoints.front();
-		testPoints.pop_front();
+		auto& [height, numSteps, tPoint] = testPoints.front();
 		auto [canStep, nextPoint] = testFunc2(height, numSteps, tPoint);
 		if (canStep)
 		{
@@ -119,6 +118,7 @@ int main()
 				addPointsToQueue(nextPoint, numSteps + 1);
 			}
 		}
+		testPoints.pop_front();
 	}
 
 	std::cout << *possibleStartDistances.begin() << "\n";
