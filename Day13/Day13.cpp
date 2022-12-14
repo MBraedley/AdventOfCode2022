@@ -120,11 +120,11 @@ std::strong_ordering operator<=>(Node::NodeValue lhs, Node::NodeValue rhs)
 
 std::strong_ordering operator<=>(std::shared_ptr<Node> lhs, std::shared_ptr<Node> rhs)
 {
-	std::cout << "Comparing ";
-	PrintNode(lhs);
-	std::cout << " and ";
-	PrintNode(rhs);
-	std::cout << "\n";
+	//std::cout << "Comparing ";
+	//PrintNode(lhs);
+	//std::cout << " and ";
+	//PrintNode(rhs);
+	//std::cout << "\n";
 
 	if (lhs->subNodes.empty() && rhs->subNodes.empty())
 	{
@@ -141,9 +141,10 @@ std::strong_ordering operator<=>(std::shared_ptr<Node> lhs, std::shared_ptr<Node
 
 	for (std::size_t i{ 0 }; i < std::min(lhs->subNodes.size(), rhs->subNodes.size()); i++)
 	{
-		if (lhs->subNodes[i] != rhs->subNodes[i])
+		auto order = lhs->subNodes[i] <=> rhs->subNodes[i];
+		if (order != std::strong_ordering::equal)
 		{
-			return lhs->subNodes[i] <=> rhs->subNodes[i];
+			return order;
 		}
 	}
 
@@ -165,7 +166,8 @@ int main()
 		std::getline(inStrm, line);	//empty line
 	}
 
-	std::size_t lIndex = 1;
+	std::size_t index = 1;
+	std::size_t correctIndices = 0;
 
 	std::vector<std::pair<std::shared_ptr<Node>, std::shared_ptr<Node>>> parsedInput;
 	for (auto& [left, right] : input)
@@ -174,21 +176,60 @@ int main()
 		auto order = pLeft <=> pRight;
 		if (order == std::strong_ordering::equal)
 		{
-			std::cout << "lhs == rhs";
+			//std::cout << "lhs == rhs";
 		}
 		else if (order == std::strong_ordering::less)
 		{
-			std::cout << "lhs < rhs";
+			//std::cout << "lhs < rhs";
+			correctIndices += index;
 		}
 		else if (order == std::strong_ordering::greater)
 		{
-			std::cout << "lhs > rhs";
+			//std::cout << "lhs > rhs";
 		}
 		else
 		{
 			throw std::exception("bad ordering");
 		}
 		std::cout << "\n\n";
+		index++;
 	}
-	std::cout << "end\n";
+	std::cout << "Part 1:" << correctIndices << "\n";
+
+	//Part 2
+	std::vector<std::shared_ptr<Node>> allPackets;
+	allPackets.reserve(parsedInput.size() * 2 + 2);
+
+	for (auto& [left, right] : parsedInput)
+	{
+		allPackets.push_back(left);
+		allPackets.push_back(right);
+	}
+
+	auto div2 = ParsePacket("[[2]]");
+	auto div6 = ParsePacket("[[6]]");
+	allPackets.push_back(div2);
+	allPackets.push_back(div6);
+
+	std::ranges::sort(allPackets, [](std::shared_ptr<Node> lhs, std::shared_ptr<Node> rhs) -> bool
+		{
+			return (lhs <=> rhs) == std::strong_ordering::less;
+		});
+
+	std::size_t index2 = 0;
+	std::size_t index6 = 0;
+
+	for (std::size_t i{ 0 }; i < allPackets.size(); i++)
+	{
+		if ((div2 <=> allPackets[i]) == std::strong_ordering::equal)
+		{
+			index2 = i + 1;
+		}
+		if ((div6 <=> allPackets[i]) == std::strong_ordering::equal)
+		{
+			index6 = i + 1;
+		}
+	}
+
+	std::cout << "Part 2: " << index2 * index6 << "\n";
 }
