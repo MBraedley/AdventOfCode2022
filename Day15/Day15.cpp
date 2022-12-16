@@ -45,7 +45,7 @@ void ReduceRow(std::deque<std::pair<std::int64_t, std::int64_t>>& row)
 		std::pair<std::int64_t, std::int64_t> comp2 = row.front();
 		row.pop_front();
 
-		if (comp2.first - comp1.second <= 1)
+		if (comp2.first <= comp1.second)
 		{
 			comp1.second = std::max(comp1.second, comp2.second);
 			didMerge = true;
@@ -125,7 +125,7 @@ int main()
 	std::cout << numPoints << "\n";
 
 	//Part 2
-	for (int y = 0; y <= 400000; y++)
+	for (std::int64_t y = 0; y <= 400000; y++)
 	{
 		std::deque<std::pair<std::int64_t, std::int64_t>> coveredPoints;
 		for (const auto& [sensor, beacon] : sensorsAndBeacons)
