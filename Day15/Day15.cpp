@@ -125,7 +125,7 @@ int main()
 	std::cout << numPoints << "\n";
 
 	//Part 2
-	for (std::int64_t y = 0; y <= 400000; y++)
+	for (std::int64_t y = 0; y <= 4000000; y++)
 	{
 		std::deque<std::pair<std::int64_t, std::int64_t>> coveredPoints;
 		for (const auto& [sensor, beacon] : sensorsAndBeacons)
@@ -147,10 +147,10 @@ int main()
 		}
 
 		ReduceRow(coveredPoints);
-		if (coveredPoints.size() >= 2 || coveredPoints.front().first > 0 || coveredPoints.back().second < 400000)
+		if (coveredPoints.size() >= 2 || coveredPoints.front().first > 0 || coveredPoints.back().second < 4000000)
 		{
 			std::int64_t x = coveredPoints.front().second + 1;
-			std::cout << x * 400000 + y << "\n";
+			std::cout << x * 4000000 + y << "\n";
 			return 0;
 		}
 	}
