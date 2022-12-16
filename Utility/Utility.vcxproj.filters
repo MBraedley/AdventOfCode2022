@@ -13,9 +13,29 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Header Files\NamedType">
+      <UniqueIdentifier>{58eb094b-6ac7-4bdf-964b-014e7f61a297}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Day16.cpp">
+    <ClInclude Include="NamedType-master\include\NamedType\crtp.hpp">
+      <Filter>Header Files\NamedType</Filter>
+    </ClInclude>
+    <ClInclude Include="NamedType-master\include\NamedType\named_type.hpp">
+      <Filter>Header Files\NamedType</Filter>
+    </ClInclude>
+    <ClInclude Include="NamedType-master\include\NamedType\named_type_impl.hpp">
+      <Filter>Header Files\NamedType</Filter>
+    </ClInclude>
+    <ClInclude Include="NamedType-master\include\NamedType\underlying_functionalities.hpp">
+      <Filter>Header Files\NamedType</Filter>
+    </ClInclude>
+    <ClInclude Include="NamedType-master\include\NamedType\version.hpp">
+      <Filter>Header Files\NamedType</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Placeholder.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
