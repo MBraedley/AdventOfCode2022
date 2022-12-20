@@ -68,16 +68,14 @@ int main()
 
 	std::sort(lava.begin(), lava.end());
 
-	std::size_t surfaceArea1{ 0 };
+	std::vector<LavaPoint> diff;
+	
 	for (auto& p : lava)
 	{
-		std::vector<LavaPoint> diff;
 		std::vector<LavaPoint> n = p.GetNeighbours();
 		
 		std::set_difference(n.begin(), n.end(), lava.begin(), lava.end(), std::back_inserter(diff));
-
-		surfaceArea1 += diff.size();
 	}
 
-	std::cout << surfaceArea1 << "\n";
+	std::cout << diff.size() << "\n";
 }
