@@ -8,25 +8,26 @@
 
 int main()
 {
+	using EncryptedCoordList = std::deque<std::pair<std::int64_t, std::size_t>>;
+
 	std::filesystem::path inputFile("input.txt");
 	std::ifstream inStrm(inputFile);
-	std::vector<std::int64_t> mixOrder;
-	std::deque<std::int64_t> inputPt1;
-	std::deque<std::int64_t> inputPt2;
+	EncryptedCoordList inputPt1;
+	EncryptedCoordList inputPt2;
 
 	constexpr std::int64_t decryptKey = 811589153;
+	std::int64_t codeLength{ 0 };
 
 	std::int64_t val;
 	while (inStrm>>val)
 	{
-		mixOrder.emplace_back(val);
-		inputPt1.emplace_back(val);
-		inputPt2.emplace_back(val * decryptKey);
+		inputPt1.emplace_back(val, codeLength);
+		inputPt2.emplace_back(val * decryptKey, codeLength);
+		codeLength++;
 	}
 
-	std::int64_t codeLength = mixOrder.size();
 
-	auto MixList = [&](std::deque<std::int64_t>& input)
+	auto MixList = [&](EncryptedCoordList& input)
 	{
 		//for (auto i : input)
 		//{
@@ -34,15 +35,16 @@ int main()
 		//}
 		//std::cout << "\n";
 
-		for (std::int64_t val : mixOrder)
+		for (std::size_t i{0}; i < codeLength; i++)
 		{
-			while (input.front() != val)
+			while (input.front().second != i)
 			{
 				input.push_back(input.front());
 				input.pop_front();
 			}
 
 			auto iter = input.begin();
+			val = iter->first;
 
 			std::int64_t endIndex = val % (codeLength - 1);
 			if (endIndex < 0)
@@ -51,7 +53,7 @@ int main()
 			}
 
 			input.erase(iter);
-			input.emplace(input.begin() + endIndex, val);
+			input.emplace(input.begin() + endIndex, val, i);
 
 			//for (auto i : input)
 			//{
@@ -61,23 +63,22 @@ int main()
 		}
 	};
 
-	auto PrintOutput = [codeLength](std::deque<std::int64_t>& input)
+	auto PrintOutput = [codeLength](EncryptedCoordList& input)
 	{
-		while (input.front() != 0)
+		while (input.front().first != 0)
 		{
 			input.push_back(input.front());
 			input.pop_front();
 		}
 
-		std::cout << *(input.begin() + 1000 % codeLength) << " " << * (input.begin() + 2000 % codeLength) << " " << *(input.begin() + 3000 % codeLength) << " = ";
-		std::cout << *(input.begin() + 1000 % codeLength) + * (input.begin() + 2000 % codeLength) + *(input.begin() + 3000 % codeLength) << "\n";
+		std::cout << (input.begin() + 1000 % codeLength)->first << " " << (input.begin() + 2000 % codeLength)->first << " " << (input.begin() + 3000 % codeLength)->first << " = ";
+		std::cout << (input.begin() + 1000 % codeLength)->first + (input.begin() + 2000 % codeLength)->first + (input.begin() + 3000 % codeLength)->first << "\n";
 	};
 
 	MixList(inputPt1);
 	PrintOutput(inputPt1);
 
 	//Part 2
-	std::transform(mixOrder.begin(), mixOrder.end(), mixOrder.begin(), [](std::int64_t val) {return val * decryptKey; });
 	for (int i = 0; i < 10; i++)
 	{
 		MixList(inputPt2);
