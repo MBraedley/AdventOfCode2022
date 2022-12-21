@@ -12,6 +12,7 @@
 #include <cassert>
 #include <queue>
 #include <unordered_set>
+#include <chrono>
 
 using FlowRate = fluent::NamedType<std::int64_t, struct _FlowRate, fluent::Arithmetic>;
 using TimeLeft = fluent::NamedType<std::int64_t, struct _TimeLeft, fluent::Arithmetic>;
@@ -82,29 +83,35 @@ int main()
 	std::ifstream inStrm(inputFile);
 
 	std::unordered_map<std::string, std::shared_ptr<Valve>> valves;
+	std::unordered_map<std::string, std::shared_ptr<Valve>> workingValves;
 	std::string line;
 
 	std::regex valveName("([A-Z]{2})");
 	std::regex flowRate("flow rate=(\\d+)");
 	std::smatch m;
 
-	std::size_t valveCount{ 0 };
+	//std::unordered_multiset<FlowRate> unopenedValves;
+	auto start = std::chrono::system_clock::now();
 
+	//create all valves
 	while (std::getline(inStrm, line))
 	{
 		input.push_back(line);
 		std::regex_search(line, m, valveName);
 		std::string name = m[1];
 		std::regex_search(line, m, flowRate);
-		std::int64_t rate = std::stoull(m[1]);
-		valves[name] = std::make_shared<Valve>( name, FlowRate( rate ) );
+		FlowRate rate(std::stoull(m[1]));
+		valves[name] = std::make_shared<Valve>( name, rate );
 
-		if( rate > 0 )
+		if( rate.get() > 0)
 		{
-			valveCount++;
+			workingValves[name] = valves[name];
 		}
 	}
 
+	workingValves["AA"] = valves["AA"];	//Add the starting valve
+
+	//create connections
 	for (auto valveLine : input)
 	{
 		std::regex_search(valveLine, m, valveName);
@@ -119,108 +126,83 @@ int main()
 		}
 	}
 
-	using PathScore = std::tuple<std::shared_ptr<Valve>, TimeLeft, std::unordered_set<std::string>, std::unordered_set<std::string>, bool, Score, std::string>;
-
-	auto pathComp = []( const PathScore& l, const PathScore& r ) -> bool
+	//Generate pairwise distances
+	std::unordered_multimap<std::string, std::tuple<std::string, TimeLeft>> distances;
+	for (const auto& [name, _] : workingValves)
 	{
-		auto& [lValve, lTimeLeft, lOpenedValves, lVistedValves, lOpenValve, lScore, lPathSoFar] = l;
-		auto& [rValve, rTimeLeft, rOpenedValves, rVistedValves, rOpenValve, rScore, rPathSoFar] = r;
-
-		assert( (lOpenedValves.contains( lValve->GetName() ) && lOpenValve) == false );
-		assert( (rOpenedValves.contains( rValve->GetName() ) && rOpenValve) == false );
-		
-		Score lNewScore = lScore;
-		Score rNewScore = rScore;
-		
-		if( !lValve->IsOpened() )
+		std::unordered_map<std::string, TimeLeft> visited;
+		std::queue<std::pair<std::string, TimeLeft>> nextValves;
+		nextValves.emplace( name, 0ll );
+		while (!nextValves.empty())
 		{
-			if( lOpenValve )
+			auto& [testedName, travelTime] = nextValves.front();
+
+			if (!visited.contains(testedName) || visited[testedName] > travelTime)
 			{
-				lNewScore += lValve->GetScore( lTimeLeft );
-			}
-			else
-			{
-				lNewScore += lValve->GetScore( lTimeLeft - onePeriod );
-			}
-		}
-
-		if( !rValve->IsOpened() )
-		{
-			if( rOpenValve )
-			{
-				rNewScore += rValve->GetScore( rTimeLeft );
-			}
-			else
-			{
-				rNewScore += rValve->GetScore( rTimeLeft - onePeriod );
-			}
-		}
-
-		if( lNewScore == rNewScore )
-		{
-			return lTimeLeft < rTimeLeft;
-		}
-
-		return lNewScore < rNewScore;
-	};
-
-	std::priority_queue<PathScore, std::vector<PathScore>, decltype(pathComp)> searchQueue(pathComp);
-	searchQueue.push( { valves["AA"], TimeLeft( 31 ), {}, {}, false, Score( 0 ), "" } );
-	Score bestScore{ 0 };
-	std::string bestPath;
-
-	while( !searchQueue.empty() )
-	{
-		PathScore path = searchQueue.top();
-		searchQueue.pop();
-		auto& [valve, timeLeft, openedValves, vistedValves, openValve, score, pathSoFar] = path;
-		if( score > bestScore )
-		{
-			bestScore = score;
-			bestPath = pathSoFar;
-		}
-
-		assert( !vistedValves.contains( valve->GetName() ) || openValve );
-		vistedValves.insert( valve->GetName() );
-		pathSoFar += valve->GetName() + "->";
-
-		if( openedValves.size() == valveCount )
-		{
-			std::priority_queue<PathScore, std::vector<PathScore>, decltype(pathComp)> emptyQueue( pathComp );
-			std::swap( searchQueue, emptyQueue );
-		}
-
-		if( timeLeft > TimeLeft( 0 ) && openedValves.size() < valveCount )
-		{
-			timeLeft--;
-
-			if( valve->GetFlowRate().get() > 0 )
-			{
-				if( openValve )
+				visited[testedName] = travelTime;
+				for (auto& neighbour : valves[testedName]->GetConnections())
 				{
-					assert( !openedValves.contains( valve->GetName() ) );
-					valve->OpenValve();
-					openedValves.insert( valve->GetName() );
-					score += valve->GetScore( timeLeft );
-					pathSoFar += "open->";
-					vistedValves.clear();
-				}
-				else if( !openedValves.contains( valve->GetName() ) )
-				{
-					searchQueue.push( { valve, timeLeft, openedValves, vistedValves, true, score, pathSoFar } );
+					nextValves.emplace(neighbour->GetName(), travelTime + onePeriod);
 				}
 			}
 
-			for( std::shared_ptr<Valve> connection : valve->GetConnections() )
+			nextValves.pop();
+		}
+
+		for (const auto& [otherName, _] : workingValves)
+		{
+			if (name != otherName)
 			{
-				if( !vistedValves.contains( connection->GetName() ) )
-				{
-					searchQueue.push( { connection, timeLeft, openedValves, vistedValves, false, score, pathSoFar } );
-				}
+				assert(visited.contains(otherName));
+				distances.emplace(name, std::make_tuple(otherName, visited[otherName] + onePeriod));
 			}
 		}
-		//std::cout << pathSoFar << "\n";
 	}
 
-	std::cout << bestPath << "\n" << bestScore.get() << "\n";
+	auto preprocessing = std::chrono::system_clock::now();
+	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(preprocessing - start) << "\n";
+
+	using Path = std::tuple<std::shared_ptr<Valve>, std::unordered_set<std::string>, TimeLeft, Score>;
+
+	auto pathCompLess = [](const Path& lhs, const Path& rhs)
+	{
+		const auto& [vl, _l, tl, sl] = lhs;
+		const auto& [vr, _r, tr, sr] = rhs;
+		return sl + vl->GetScore(tl) < sr + vr->GetScore(tr);
+	};
+
+	std::priority_queue<Path, std::vector<Path>, decltype(pathCompLess)> searchQueue(pathCompLess);
+	searchQueue.push({ valves["AA"], {}, TimeLeft(30), Score(0) });
+	Score bestScore{ 0 };
+
+	while (!searchQueue.empty())
+	{
+		auto [val, visited, timeLeft, score] = searchQueue.top();
+		searchQueue.pop();
+
+		visited.emplace(val->GetName());
+		score += val->GetScore(timeLeft);
+
+		if (score > bestScore)
+		{
+			bestScore = score;
+		}
+
+		auto otherValves = distances.equal_range(val->GetName());
+		for (auto iter = otherValves.first; iter != otherValves.second; iter++)
+		{
+			std::string otherName = std::get<std::string>(iter->second);
+			TimeLeft distTo = std::get<TimeLeft>(iter->second);
+			
+			if (!visited.contains(otherName) && distTo < timeLeft)
+			{
+				searchQueue.emplace(valves[otherName], visited, timeLeft - distTo, score);
+			}
+		}
+	}
+	
+	auto part1 = std::chrono::system_clock::now();
+
+	std::cout << bestScore.get() << "\n";
+	std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(part1 - preprocessing) << "\n";
 }
