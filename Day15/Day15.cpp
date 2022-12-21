@@ -132,7 +132,7 @@ int main()
 		{
 			if (auto covered = GetRowPoints(sensor, beacon, y); covered != std::nullopt)
 			{
-				coveredPoints.push_back(covered.value());
+				coveredPoints.emplace_back(covered.value());
 			}
 		}
 
@@ -147,7 +147,7 @@ int main()
 		}
 
 		ReduceRow(coveredPoints);
-		if (coveredPoints.size() >= 2 || coveredPoints.front().first > 0 || coveredPoints.back().second < 4000000)
+		if (coveredPoints.front() != coveredPoints.back())
 		{
 			std::int64_t x = coveredPoints.front().second + 1;
 			std::cout << x * 4000000 + y << "\n";
