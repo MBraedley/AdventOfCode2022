@@ -6,6 +6,7 @@
 #include <functional>
 #include <bitset>
 #include <deque>
+#include <cassert>
 
 bool CanPushLeft(const std::vector<std::bitset<7>>& piece, const std::vector<std::bitset<7>>& tower, std::size_t row)
 {
@@ -75,6 +76,9 @@ int main()
 	std::filesystem::path inputFile("input.txt");
 	std::ifstream inStrm(inputFile);
 
+	std::filesystem::path outputFile("output.csv");
+	std::ofstream outStrm(outputFile);
+
 	std::string jets;
 	std::getline(inStrm, jets);
 
@@ -88,6 +92,10 @@ int main()
 
 	std::vector<std::bitset<7>> tower(7);
 	std::size_t bottomEmptyRowIndex{ 0 };
+
+	std::unordered_map<std::size_t, std::size_t> heightAfterLanding;
+
+	outStrm << "Piece Num,Piece ID,Jet ID,Bottom Empty Row\n";
 
 	std::size_t jetId{ 0 };
 	for (std::size_t pieceId{ 0 }; pieceId < 2022; pieceId++)
@@ -131,6 +139,10 @@ int main()
 					tower[pieceRowIndex + r] |= fallingPiece[r];
 				}
 				landed = true;
+				outStrm << pieceId + 1 << "," << pieceId % pieces.size() << "," << jetId % jets.size() << ","
+					<< std::max(bottomEmptyRowIndex, pieceRowIndex + fallingPiece.size()) << "\n";
+
+				heightAfterLanding.emplace(pieceId, std::max(bottomEmptyRowIndex, pieceRowIndex + fallingPiece.size()));
 			}
 		}
 
@@ -138,4 +150,20 @@ int main()
 	}
 
 	std::cout << bottomEmptyRowIndex << "\n";
+
+	//Part 2
+	std::size_t piecePhase = 198;
+	std::size_t piecePeriod = 1690;
+	std::size_t heightPeriod = 2647;
+
+	std::size_t numPieces = 1000000000000;
+
+	auto numCycles = (numPieces - piecePhase) / piecePeriod;
+	auto cyclePhase = (numPieces - piecePhase) % piecePeriod;
+
+	auto cycledHeight = numCycles * heightPeriod;
+
+	auto totalHeight = cycledHeight + heightAfterLanding[piecePhase - 1 + cyclePhase];
+
+	std::cout << totalHeight << "\n";
 }
