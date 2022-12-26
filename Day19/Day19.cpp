@@ -6,9 +6,10 @@
 #include <functional>
 #include <regex>
 #include <unordered_map>
-#include <queue>
+#include <deque>
 #include <optional>
 #include <future>
+#include <sstream>
 #include <cassert>
 
 enum class Resource
@@ -56,9 +57,9 @@ public:
 
 	~RobotFactory() = default;
 
-	bool CanBuild(Resource type, const std::unordered_map<Resource, std::int32_t> currentResources)
+	bool CanBuild(Resource type, const std::unordered_map<Resource, std::int32_t> currentResources) const
 	{
-		const auto& cost = m_Costs[type];
+		const auto& cost = m_Costs.at(type);
 		for (const auto& [r, c] : cost)
 		{
 			if (!currentResources.contains(r) || currentResources.at(r) < c)
@@ -70,14 +71,19 @@ public:
 		return true;
 	}
 
-	bool ShouldBuild(Resource type, std::int32_t botCount, std::int32_t resourceCount, std::int32_t timeLeft)
+	bool ShouldBuild(Resource type, std::int32_t botCount, std::int32_t resourceCount, std::int32_t timeLeft) const
 	{
 		if (type == Resource::Geode)
 		{
 			return true;	//Always build geode bots, even if they don't get used
 		}
 
-		auto maxCost = m_MaxCosts[type];
+		if (timeLeft <= 1)
+		{
+			return false;	//Won't be built in time
+		}
+
+		auto maxCost = m_MaxCosts.at(type);
 
 		return maxCost * timeLeft > resourceCount + botCount * timeLeft;
 	}
@@ -97,7 +103,7 @@ public:
 	}
 
 private:
-	Resource GetResource(const std::string& str)
+	Resource GetResource(const std::string& str) const
 	{
 		if (str == "ore")
 		{
@@ -121,26 +127,26 @@ private:
 	std::unordered_map<Resource, std::int32_t> m_MaxCosts;
 };
 
-std::partial_ordering operator<=>(std::unordered_map<Resource, std::int32_t>& lhs, std::unordered_map<Resource, std::int32_t>& rhs)
+std::partial_ordering operator<=>(const std::unordered_map<Resource, std::int32_t>& lhs, const std::unordered_map<Resource, std::int32_t>& rhs)
 {
-	if (lhs[Resource::Ore] == rhs[Resource::Ore] &&
-		lhs[Resource::Clay] == rhs[Resource::Clay] &&
-		lhs[Resource::Obsidian] == rhs[Resource::Obsidian] &&
-		lhs[Resource::Geode] == rhs[Resource::Geode])
+	if (lhs.at(Resource::Ore) == rhs.at(Resource::Ore) &&
+		lhs.at(Resource::Clay) == rhs.at(Resource::Clay) &&
+		lhs.at(Resource::Obsidian) == rhs.at(Resource::Obsidian) &&
+		lhs.at(Resource::Geode) == rhs.at(Resource::Geode))
 	{
 		return std::partial_ordering::equivalent;
 	}
-	else if (lhs[Resource::Ore] <= rhs[Resource::Ore] &&
-		lhs[Resource::Clay] <= rhs[Resource::Clay] &&
-		lhs[Resource::Obsidian] <= rhs[Resource::Obsidian] &&
-		lhs[Resource::Geode] <= rhs[Resource::Geode])
+	else if (lhs.at(Resource::Ore) <= rhs.at(Resource::Ore) &&
+		lhs.at(Resource::Clay) <= rhs.at(Resource::Clay) &&
+		lhs.at(Resource::Obsidian) <= rhs.at(Resource::Obsidian) &&
+		lhs.at(Resource::Geode) <= rhs.at(Resource::Geode))
 	{
 		return std::partial_ordering::less;
 	}
-	else if (lhs[Resource::Ore] >= rhs[Resource::Ore] &&
-		lhs[Resource::Clay] >= rhs[Resource::Clay] &&
-		lhs[Resource::Obsidian] >= rhs[Resource::Obsidian] &&
-		lhs[Resource::Geode] >= rhs[Resource::Geode])
+	else if (lhs.at(Resource::Ore) >= rhs.at(Resource::Ore) &&
+		lhs.at(Resource::Clay) >= rhs.at(Resource::Clay) &&
+		lhs.at(Resource::Obsidian) >= rhs.at(Resource::Obsidian) &&
+		lhs.at(Resource::Geode) >= rhs.at(Resource::Geode))
 	{
 		return std::partial_ordering::greater;
 	}
@@ -163,143 +169,185 @@ int main()
 		factories.emplace_back(line);
 	}
 
-	std::vector<std::future<std::uint32_t>> scoreFutures;
-	using State = std::tuple<std::unordered_map<Resource, std::int32_t>, std::unordered_map<Resource, std::int32_t>, std::optional<Resource>, std::uint32_t>;
+	using ResourceCount = std::unordered_map<Resource, std::int32_t>;
+	using RobotCount = ResourceCount;
+	using State = std::tuple<RobotCount, ResourceCount, std::optional<Resource>, std::uint32_t>;
 
-	const std::vector<std::optional<Resource>> buildOptions{ Resource::Geode, Resource::Obsidian, Resource::Clay, Resource::Ore, std::nullopt };
+	const std::vector<std::optional<Resource>> buildOptions{ std::nullopt, Resource::Ore, Resource::Clay, Resource::Obsidian };
 
-	auto stateCompLess = [](const State& lhs, const State& rhs)
+	auto maxPotentialGeodes = [](std::int32_t bots, std::int32_t geodes, std::int32_t timeLeft)
 	{
-		auto [lRobots, lResources, lBuild, lTime] = lhs;
-		auto [rRobots, rResources, rBuild, rTime] = rhs;
-
-		if (lBuild.has_value())
-		{
-			lRobots[lBuild.value()]++;
-		}
-		if (rBuild.has_value())
-		{
-			rRobots[rBuild.value()]++;
-		}
-
-		if (lTime == rTime)
-		{
-			if (lRobots == rRobots)
-			{
-				return lResources < rResources;
-			}
-			return lRobots < rRobots;
-		}
-		return lTime > rTime;
+		auto triNum = timeLeft * (timeLeft + 1) / 2;
+		return geodes + bots * timeLeft + triNum;
 	};
 
-	for (std::size_t i{ 0 }; i < factories.size(); i++)
+	auto runBlueprint = [&](RobotFactory& factory, std::int32_t runTime) -> std::uint32_t
 	{
-		 scoreFutures.push_back( std::async(std::launch::async, [&](std::size_t index) -> std::uint32_t
+		std::uint32_t localScore{ 0 };
+		std::deque<State> fillQueue;
+		RobotCount robots
+		{
+			{Resource::Ore, 1},
+			{Resource::Clay, 0},
+			{Resource::Obsidian, 0},
+			{Resource::Geode, 0},
+		};
+		ResourceCount resources
+		{
+			{Resource::Ore, 0},
+			{Resource::Clay, 0},
+			{Resource::Obsidian, 0},
+			{Resource::Geode, 0},
+		};
+		std::optional<Resource> botBeingBuilt{ std::nullopt };
+		std::uint32_t timeSpent{ 1 };
+
+		std::vector<std::tuple<RobotCount, ResourceCount, std::uint32_t>> bestStates;
+
+		fillQueue.push_front(std::make_tuple(robots, resources, botBeingBuilt, timeSpent));
+
+		while (!fillQueue.empty())
+		{
+			State nextState = fillQueue.front();
+			std::tie(robots, resources, botBeingBuilt, timeSpent) = nextState;
+
+			fillQueue.pop_front();
+
+			for (auto [r, c] : robots)
 			{
-				std::uint32_t bestScore{ 0 };
-				std::priority_queue<State, std::vector<State>, decltype(stateCompLess)> fillQueue(stateCompLess);
-				std::unordered_map<Resource, std::int32_t> robots;
-				robots.emplace(Resource::Ore, 1);
-				std::unordered_map<Resource, std::int32_t> resources;
-				std::optional<Resource> botBeingBuilt{ std::nullopt };
-				std::uint32_t timeSpent{ 1 };
+				resources[r] += c;
+			}
 
-				fillQueue.push(std::make_tuple(robots, resources, botBeingBuilt, timeSpent));
+			if (botBeingBuilt.has_value())
+			{
+				robots[botBeingBuilt.value()]++;
+				botBeingBuilt = std::nullopt;
+			}
 
-				std::vector<State> statesThisMinute;
-
-				while (!fillQueue.empty())
+			//This is our state at the end of the minute.  Now need to prep for the start of the next minute.
+			bool prune = false;
+			bool skipInsert = false;
+			if (maxPotentialGeodes(robots[Resource::Geode], resources[Resource::Geode], runTime - timeSpent) < localScore)
+			{
+				//We can't possibly beat best score, so don't bother continuing down this path
+				prune = true;
+			}
+			else
+			{
+				for (auto& [oRobots, oResources, oTime] : bestStates)
 				{
-					State nextState = fillQueue.top();
-					std::tie(robots, resources, botBeingBuilt, timeSpent) = nextState;
-
-					fillQueue.pop();
-
-					for (auto [r, c] : robots)
+					auto orderRobots = robots <=> oRobots;
+					auto orderResources = resources <=> oResources;
+					if ((orderRobots == std::partial_ordering::less || orderRobots == std::partial_ordering::equivalent)
+						&& (orderResources == std::partial_ordering::less || orderResources == std::partial_ordering::equivalent)
+						&& timeSpent >= oTime)
 					{
-						resources[r] += c;
+						prune = true;
+						break;
 					}
-
-					if (botBeingBuilt.has_value())
+					else if ((orderRobots == std::partial_ordering::greater || orderRobots == std::partial_ordering::equivalent)
+						&& (orderResources == std::partial_ordering::greater || orderResources == std::partial_ordering::equivalent)
+						&& timeSpent <= oTime)
 					{
-						robots[botBeingBuilt.value()]++;
-						botBeingBuilt = std::nullopt;
+						oTime = timeSpent;
+						oRobots = robots;
+						oResources = resources;
+						skipInsert = true;
 					}
+				}
+			}
 
-					bool prune = false;
+			if (prune)
+			{
+				continue;
+			}
+			else if (!skipInsert)
+			{
+				bestStates.emplace_back(robots, resources, timeSpent);
+			}
 
-					if (statesThisMinute.empty() || std::get<3>(statesThisMinute[0]) != timeSpent)
+			if (timeSpent == runTime)
+			{
+				if (resources[Resource::Geode] > localScore)
+				{
+					localScore = resources[Resource::Geode];
+				}
+			}
+			else
+			{
+				//If we can build a Geode bot, we should always build it
+				if (factory.CanBuild(Resource::Geode, resources))
+				{
+					auto nextResources = factory.BuildRobot(Resource::Geode, resources);
+					fillQueue.push_front(std::make_tuple(robots, nextResources, Resource::Geode, timeSpent + 1));
+				}
+				else
+				{
+					for (auto buildBot : buildOptions)
 					{
-						statesThisMinute.clear();
-					}
-					else
-					{
-						for (auto& [oRobots, oResources, oBuild, oTime] : statesThisMinute)
+						if (!buildBot.has_value())
 						{
-							auto robotComp = robots <=> oRobots;
-							auto resourceComp = resources <=> oResources;
-							if ((robotComp == std::partial_ordering::less || robotComp == std::partial_ordering::equivalent)
-								&& (resourceComp == std::partial_ordering::less || resourceComp == std::partial_ordering::equivalent))
-							{
-								prune = true;
-								break;
-							}
+							fillQueue.push_front(std::make_tuple(robots, resources, buildBot, timeSpent + 1));
 						}
-					}
-
-					if (timeSpent == 24)
-					{
-						if (resources[Resource::Geode] > bestScore)
+						else if (factory.CanBuild(buildBot.value(), resources))
 						{
-							bestScore = resources[Resource::Geode];
-						}
-					}
-					else if (!prune)
-					{
-						statesThisMinute.push_back(nextState);
-
-						for (auto buildBot : buildOptions)
-						{
-							if (!buildBot.has_value())
+							if (factory.ShouldBuild(buildBot.value(), robots[buildBot.value()], resources[buildBot.value()], runTime - timeSpent))
 							{
-								fillQueue.push(std::make_tuple(robots, resources, buildBot, timeSpent + 1));
-							}
-							else if (factories[index].CanBuild(buildBot.value(), resources))
-							{
-								if (factories[index].ShouldBuild(buildBot.value(), robots[buildBot.value()], resources[buildBot.value()], 24 - timeSpent))
-								{
-									auto nextResources = factories[index].BuildRobot(buildBot.value(), resources);
+								auto nextResources = factory.BuildRobot(buildBot.value(), resources);
 
-									fillQueue.push(std::make_tuple(robots, nextResources, buildBot, timeSpent + 1));
-								}
-								else
-								{
-									auto t = timeSpent;
-								}
+								fillQueue.push_front(std::make_tuple(robots, nextResources, buildBot, timeSpent + 1));
 							}
 						}
 					}
 				}
+			}
+		}
 
-				return bestScore;
-			}, i) );
-	}
+		return localScore;
+	};
+
+	std::vector<std::future<std::uint32_t>> scoreFutures;
+
+	//for (auto& factory : factories)
+	//{
+	//	scoreFutures.push_back(std::async(std::launch::async, [&]() {return runBlueprint(factory, 24); }));
+	//}
 
 	std::size_t score{ 0 };
 	std::vector<std::uint32_t> bestScore;
+	//for (auto& f : scoreFutures)
+	//{
+	//	bestScore.push_back(f.get());
+	//}
+
+	//for (std::size_t i{ 0 }; i < bestScore.size(); i++)
+	//{
+	//	score += (i + 1) * bestScore[i];
+	//}
+
+	//for (auto s : bestScore)
+	//{
+	//	std::cout << s << " ";
+	//}
+	//std::cout << score << "\n";
+
+	//Part 2
+	scoreFutures.clear();
+	for (std::size_t i{ 0 }; i < 3 && i < factories.size(); i++)
+	{
+		scoreFutures.push_back(std::async(std::launch::async, [&, &factory = factories[i]] {return runBlueprint(factory, 32); }));
+	}
+
+	bestScore.clear();
 	for (auto& f : scoreFutures)
 	{
 		bestScore.push_back(f.get());
 	}
 
-	for (std::size_t i{ 0 }; i < bestScore.size(); i++)
-	{
-		score += (i + 1) * bestScore[i];
-	}
-
+	score = 1;
 	for (auto s : bestScore)
 	{
+		score *= s;
 		std::cout << s << " ";
 	}
 	std::cout << score << "\n";
