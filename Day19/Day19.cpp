@@ -308,28 +308,28 @@ int main()
 
 	std::vector<std::future<std::uint32_t>> scoreFutures;
 
-	//for (auto& factory : factories)
-	//{
-	//	scoreFutures.push_back(std::async(std::launch::async, [&]() {return runBlueprint(factory, 24); }));
-	//}
+	for (auto& factory : factories)
+	{
+		scoreFutures.push_back(std::async(std::launch::async, [&]() {return runBlueprint(factory, 24); }));
+	}
 
 	std::size_t score{ 0 };
 	std::vector<std::uint32_t> bestScore;
-	//for (auto& f : scoreFutures)
-	//{
-	//	bestScore.push_back(f.get());
-	//}
+	for (auto& f : scoreFutures)
+	{
+		bestScore.push_back(f.get());
+	}
 
-	//for (std::size_t i{ 0 }; i < bestScore.size(); i++)
-	//{
-	//	score += (i + 1) * bestScore[i];
-	//}
+	for (std::size_t i{ 0 }; i < bestScore.size(); i++)
+	{
+		score += (i + 1) * bestScore[i];
+	}
 
-	//for (auto s : bestScore)
-	//{
-	//	std::cout << s << " ";
-	//}
-	//std::cout << score << "\n";
+	for (auto s : bestScore)
+	{
+		std::cout << s << " ";
+	}
+	std::cout << score << "\n";
 
 	//Part 2
 	scoreFutures.clear();
