@@ -253,6 +253,7 @@ int main()
 						oRobots = robots;
 						oResources = resources;
 						skipInsert = true;
+						break;
 					}
 				}
 			}
